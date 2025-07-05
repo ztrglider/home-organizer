@@ -48,7 +48,8 @@ class RoomChorePicker:
     async def _schedule_next(self) -> None:
         now = dt_util.utcnow()
         days_ahead = (5 - now.weekday()) % 7  # Saturday
-        next_time = dt_util.start_of_local_day(now + timedelta(days=days_ahead))
+        next_time_local = dt_util.start_of_local_day(now + timedelta(days=days_ahead))
+        next_time = dt_util.as_utc(next_time_local)
 
         async def _run(now):
             await self.async_shuffle()
