@@ -32,7 +32,7 @@ class RoomChorePicker:
         await self.store.async_save({"recommended_room": self.recommended_room})
 
     async def async_shuffle(self, *_: ServiceCall) -> None:
-        registry = await async_get_area_registry(self.hass)
+        registry = async_get_area_registry(self.hass)
         areas = [a.name for a in registry.async_list_areas()]
         if not areas:
             self.recommended_room = None
