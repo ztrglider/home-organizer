@@ -10,6 +10,7 @@ from homeassistant.helpers import storage
 from homeassistant.helpers.area_registry import async_get as async_get_area_registry
 from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION, SERVICE_SHUFFLE
@@ -76,5 +77,5 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(DOMAIN, SERVICE_SHUFFLE, handle_shuffle)
     hass.data[DOMAIN] = picker
-    hass.helpers.discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
+    async_load_platform(hass, "sensor", DOMAIN, {}, config)
     return True
