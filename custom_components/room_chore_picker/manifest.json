@@ -1,0 +1,9 @@
+{
+    "domain": "room_chore_picker",
+    "name": "Room Chore Picker",
+    "version": "0.1.0",
+    "documentation": "https://github.com/example/home-organizer",
+    "requirements": [],
+    "dependencies": [],
+    "codeowners": ["@yourgithub"]
+}
