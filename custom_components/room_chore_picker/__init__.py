@@ -76,5 +76,5 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(DOMAIN, SERVICE_SHUFFLE, handle_shuffle)
     hass.data[DOMAIN] = picker
-    hass.helpers.discovery.async_load_platform("sensor", DOMAIN, {}, config)
+    hass.helpers.discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
     return True
