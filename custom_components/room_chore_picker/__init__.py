@@ -49,6 +49,8 @@ class RoomChorePicker:
         now = dt_util.utcnow()
         days_ahead = (5 - now.weekday()) % 7  # Saturday
         next_time_local = dt_util.start_of_local_day(now + timedelta(days=days_ahead))
+        if next_time_local <= dt_util.as_local(now):
+            next_time_local += timedelta(days=7)
         next_time = dt_util.as_utc(next_time_local)
 
         async def _run(now):
