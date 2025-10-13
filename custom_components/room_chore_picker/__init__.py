@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import storage
@@ -16,14 +17,44 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION, SERVICE_SHUFFLE
 
 
+def _normalize_area_filter(raw: Any) -> set[str] | None:
+    """Return a lower-cased set of area names from config input."""
+
+    if raw is None:
+        return None
+
+    if isinstance(raw, str):
+        candidates = [raw]
+    else:
+        try:
+            candidates = list(raw)
+        except TypeError:
+            return None
+
+    normalized = {
+        candidate.casefold()
+        for candidate in candidates
+        if isinstance(candidate, str) and candidate.strip()
+    }
+
+    return normalized
+
+
 class RoomChorePicker:
     """Class handling room selection and storage."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        include_areas: set[str] | None = None,
+        exclude_areas: set[str] | None = None,
+    ) -> None:
         self.hass = hass
         self.store = storage.Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self.recommended_room: str | None = None
         self._remove_listener = None
+        self._include_areas = include_areas.copy() if include_areas is not None else None
+        self._exclude_areas = exclude_areas.copy() if exclude_areas else set()
 
     async def async_load(self) -> None:
         data = await self.store.async_load() or {}
@@ -35,6 +66,20 @@ class RoomChorePicker:
     async def async_shuffle(self, *_: ServiceCall) -> None:
         registry = async_get_area_registry(self.hass)
         areas = [a.name for a in registry.async_list_areas()]
+
+        if self._include_areas is not None:
+            areas = [
+                area
+                for area in areas
+                if area.casefold() in self._include_areas
+            ]
+
+        if self._exclude_areas:
+            areas = [
+                area
+                for area in areas
+                if area.casefold() not in self._exclude_areas
+            ]
         if not areas:
             self.recommended_room = None
         else:
@@ -70,7 +115,15 @@ class RoomChorePicker:
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    picker = RoomChorePicker(hass)
+    domain_config = config.get(DOMAIN, {})
+
+    if isinstance(domain_config, list):
+        domain_config = domain_config[0] if domain_config else {}
+
+    include_filter = _normalize_area_filter(domain_config.get("include_areas"))
+    exclude_filter = _normalize_area_filter(domain_config.get("exclude_areas")) or set()
+
+    picker = RoomChorePicker(hass, include_filter, exclude_filter)
     await picker.async_start()
 
     async def handle_shuffle(call: ServiceCall) -> None:
