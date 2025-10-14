@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from datetime import timedelta
-from typing import Any
+from typing import Any, Callable, Sequence
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import storage
@@ -40,6 +40,47 @@ def _normalize_area_filter(raw: Any) -> set[str] | None:
     return normalized
 
 
+def _filter_areas(
+    areas: list[str],
+    include_filter: set[str] | None,
+    exclude_filter: set[str],
+) -> list[str]:
+    """Filter raw area names by include/exclude configuration."""
+
+    filtered: list[str] = []
+
+    for area in areas:
+        normalized = area.casefold()
+
+        if include_filter is not None and normalized not in include_filter:
+            continue
+
+        if normalized in exclude_filter:
+            continue
+
+        filtered.append(area)
+
+    return filtered
+
+
+def _select_recommended_room(
+    areas: list[str],
+    current_room: str | None,
+    chooser: Callable[[Sequence[str]], str],
+) -> str | None:
+    """Return the next recommended room from a filtered list."""
+
+    if not areas:
+        return None
+
+    candidates = [area for area in areas if area != current_room]
+
+    if not candidates:
+        candidates = areas
+
+    return chooser(candidates)
+
+
 class RoomChorePicker:
     """Class handling room selection and storage."""
 
@@ -65,28 +106,18 @@ class RoomChorePicker:
 
     async def async_shuffle(self, *_: ServiceCall) -> None:
         registry = async_get_area_registry(self.hass)
-        areas = [a.name for a in registry.async_list_areas()]
+        raw_areas = [a.name for a in registry.async_list_areas()]
+        filtered = _filter_areas(
+            raw_areas,
+            self._include_areas,
+            self._exclude_areas,
+        )
 
-        if self._include_areas is not None:
-            areas = [
-                area
-                for area in areas
-                if area.casefold() in self._include_areas
-            ]
-
-        if self._exclude_areas:
-            areas = [
-                area
-                for area in areas
-                if area.casefold() not in self._exclude_areas
-            ]
-        if not areas:
-            self.recommended_room = None
-        else:
-            choices = [a for a in areas if a != self.recommended_room]
-            if not choices:
-                choices = areas
-            self.recommended_room = random.choice(choices)
+        self.recommended_room = _select_recommended_room(
+            filtered,
+            self.recommended_room,
+            random.choice,
+        )
         await self.async_save()
         self.hass.bus.async_fire(f"{DOMAIN}_updated")
 
